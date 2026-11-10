@@ -1,0 +1,9 @@
+{
+  "id" : "86930f37-0785-4ed8-a6af-e13667eaf7f2",
+  "targets" : [
+    {
+      "id" : "59ea9da8-b4bc-41a3-ab75-62e49d67f317",
+      "name" : "app"
+    }
+  ]
+}
