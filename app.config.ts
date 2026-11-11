@@ -25,7 +25,6 @@ const config: ExpoConfig = {
       CFBundleDevelopmentRegion: 'ko',
       NSCameraUsageDescription: '서류·사진 업로드를 위해 카메라에 접근합니다.',
       NSPhotoLibraryUsageDescription: '서류·사진 업로드를 위해 사진 보관함에 접근합니다.',
-      NSLocationWhenInUseUsageDescription: '병원검색에서 주변 병원을 찾기 위해 현재 위치를 사용합니다.',
       NSFaceIDUsageDescription: 'Face ID로 간편하게 로그인하기 위해 사용합니다.',
     },
     privacyManifests: {
@@ -65,7 +64,7 @@ const config: ExpoConfig = {
       'expo-notifications',
       {
         enableRemoteNotifications: true, // aps-environment 엔타이틀먼트 추가 (APNs)
-        enableBackgroundRemoteNotifications: true, // UIBackgroundModes: remote-notification
+        enableBackgroundRemoteNotifications: false, // 무음(백그라운드) 푸시를 쓰지 않으므로 UIBackgroundModes 를 넣지 않음
       },
     ],
     [
