@@ -35,12 +35,15 @@ export async function registerForPush(askPermission = true): Promise<PushTokenIn
       });
     }
     info.permission = perm.status;
+    console.log('[KDC] 알림 권한 상태:', perm.status);
     if (!perm.granted) {
       cached = info;
       return info;
     }
     const device = await Notifications.getDevicePushTokenAsync();
     info.token = typeof device.data === 'string' ? device.data : JSON.stringify(device.data);
+    // 디버그 확인용: Metro 터미널(npx expo start) 또는 Xcode 콘솔에 APNs 기기 토큰이 찍힙니다.
+    console.log('[KDC] APNs device token:', info.token);
 
     // 선택 사항: Expo 푸시 서비스를 쓰려면 app.config.ts 의 extra.eas.projectId 를 설정하세요.
     const projectId =
@@ -55,6 +58,7 @@ export async function registerForPush(askPermission = true): Promise<PushTokenIn
     }
   } catch (e) {
     info.error = String(e instanceof Error ? e.message : e);
+    console.warn('[KDC] 푸시 토큰을 가져오지 못했습니다:', info.error);
   }
   cached = info;
   return info;
