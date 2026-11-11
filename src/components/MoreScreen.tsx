@@ -112,7 +112,7 @@ export default function MoreScreen(props: Props) {
           <Row
             icon="notifications-outline"
             title="알림 받기"
-            subtitle={push === 'granted' ? '예약 안내 등 알림을 받고 있습니다.' : '알림이 꺼져 있습니다.'}
+            subtitle="알림을 받으려면 켜 주세요"
             right={<Switch value={push === 'granted'} onValueChange={onPushToggle} trackColor={{ true: BRAND_COLOR }} />}
           />
           <Row

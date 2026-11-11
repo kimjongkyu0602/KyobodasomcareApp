@@ -21,7 +21,7 @@ export const USER_AGENT_SUFFIX = 'KDCHealthcareApp/iOS';
 
 /**
  * 고객센터 전화번호 (더보기 > 고객센터 전화, 웹 브리지 'call' 액션의 기본값)
- * 번호는 이 한 곳에서만 바꾸면 됩니다. (실제 번호 확인 필요: 웹사이트에는 고객센터 번호가 없음)
+ * 번호는 이 한 곳에서만 바꾸면 됩니다. (1588-7524 로 확정)
  */
 export const CUSTOMER_CENTER = '1588-7524';
 

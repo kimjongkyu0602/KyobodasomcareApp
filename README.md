@@ -82,7 +82,7 @@ Xcode 로 직접 하는 경우:
 | `START_URL` | `https://www.kyobodasomcare.com` | 앱을 열면 처음 보여줄 주소 |
 | `INTERNAL_HOSTS` | `['kyobodasomcare.com']` | 앱 안에서 열 도메인 (하위 도메인 포함). 그 외 링크는 Safari |
 | `USER_AGENT_SUFFIX` | `KDCHealthcareApp/iOS` | User-Agent 끝에 붙는 값. 웹에서 앱 접속 판별용 |
-| `CUSTOMER_CENTER` | `1588-7524` | 더보기 '고객센터 전화'와 브리지 `call` 의 기본 번호 (번호는 이 한 곳만 바꾸면 됨, 최종 확인 필요) |
+| `CUSTOMER_CENTER` | `1588-7524` | 더보기 '고객센터 전화'와 브리지 `call` 의 기본 번호 (번호는 이 한 곳만 바꾸면 됨) |
 | `CONTACT_PATH` | `/CSCT0010M.do?menuId=CS0403` | 더보기 '문의하기' |
 | `SERVICE_INFO_PATH` | `/HCCT0010M.do?menuId=CS0201` | 더보기 '서비스안내' |
 | `PRIVACY_POLICY_URL` / `TERMS_URL` | `''` | 비어 있으면 웹 첫 화면 하단의 약관 팝업(`viewBottom`)을 띄움. **웹팀이 고정 주소를 만들면 여기에 입력** |
