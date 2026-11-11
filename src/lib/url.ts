@@ -39,7 +39,7 @@ export function activeTabIndex(url: string, tabs: TabItem[] = TABS): number {
   let best = -1;
   let bestLen = -1;
   tabs.forEach((tab, i) => {
-    const p = tab.path.replace(/\/+$/, '') || '/';
+    const p = tab.path.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
     const match =
       p === '/' ? true : path === p || path.startsWith(p + '/');
     const len = p === '/' ? 0 : p.length;

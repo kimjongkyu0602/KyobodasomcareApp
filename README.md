@@ -84,7 +84,7 @@ Xcode 로 직접 하는 경우:
 | `USER_AGENT_SUFFIX` | `KDCHealthcareApp/iOS` | User-Agent 끝에 붙는 값. 웹에서 앱 접속 판별용 |
 | `CUSTOMER_CENTER` | `1588-7524` | 브리지 `call` 의 기본 번호 |
 | `TABS_ENABLED` | `true` | 하단 탭 메뉴 표시 여부 |
-| `TABS` | 홈 `/`, 상담·예약 `/reservation`, 병원검색 `/hospital`, 건강정보 `/health`, 마이페이지 `/mypage` | **TODO: 실제 웹 경로로 바꿔야 함** |
+| `TABS` | 홈 `/`, 서비스안내 `/HCCT0010M.do`, 건강검진 `/ReMd0020/REMD0020M.do`, 건강정보 `/HcCi0010/HCCI0010M.do`, 마이페이지(나의서비스) `/HcIt0010/HCIT0010R.do` | 웹 메뉴의 실제 주소 (menuId/menuName 쿼리 포함). 건강검진·건강정보·마이페이지는 로그인 필요 |
 | `SPLASH_MAX_MS` | `3000` | 스플래시 최대 표시 시간 |
 
 웹 쪽에서 앱 접속 판별 예시:
@@ -177,7 +177,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'getPushToken' })
 1. **APNs 인증 키 발급**: Apple Developer > Certificates, IDs & Profiles > Keys 에서 + → "Apple Push Notifications service (APNs)" 체크 → `.p8` 다운로드 (한 번만 받을 수 있음). Key ID, 팀 ID(`V388NH26FH`)와 함께 서버팀에 전달. `.p8` 은 git 에 올리지 마세요.
 2. **App ID 푸시 기능**: Identifiers > `com.kyobodasomcare.app` 에서 Push Notifications 가 켜져 있는지 확인 (Xcode 자동 서명이 보통 켜 줍니다).
 3. **서버 발송**: 웹 로그인 시 브리지로 받은 토큰을 회원과 연결해 저장하고, APNs 로 발송하는 서버 기능 구현.
-4. **탭 경로**: `src/config.ts` 의 `TABS` 경로를 실제 웹 주소로 변경. 앱 안에서는 웹의 하단 메뉴를 숨기는 처리.
+4. **탭 경로**: 웹에 '병원검색'·'심리케어'·'마이페이지' 메뉴가 생기면 `src/config.ts` 의 `TABS` 를 바꿔 주세요. 웹팀 확인 필요: 로그아웃 상태에서 `/HcCi0010/HCCI0010M.do`(건강정보)는 로그인 화면이 아니라 오류 페이지가 뜹니다 (다른 회원 메뉴는 로그인으로 이동).
 5. **심사 준비 (웹/App Store Connect)**
    - 앱 안에서 **회원 탈퇴** 기능 (필수, 가이드라인 5.1.1(v))
    - **개인정보처리방침 URL** (App Store Connect 입력 + 웹 안에서 접근 가능)

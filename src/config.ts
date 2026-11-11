@@ -43,16 +43,28 @@ export type TabItem = {
 };
 
 /**
- * 하단 탭 메뉴 목록
- * TODO: 실제 웹 경로가 정해지면 path 값을 바꿔 주세요.
- * 현재 웹 주소의 경로가 path 로 시작하면 해당 탭이 선택 표시됩니다.
+ * 웹 메뉴 주소 만들기
+ * 웹사이트 메뉴(goMenu)는 menuId, menuName 을 쿼리로 함께 넘겨 상단 메뉴 선택 표시를 합니다.
+ */
+const menu = (path: string, menuId: string, menuName: string) =>
+  `${path}?menuId=${menuId}&menuName=${encodeURIComponent(menuName)}`;
+
+/**
+ * 하단 탭 메뉴 목록 (2026-11-11 웹사이트 메뉴 기준으로 확인한 실제 주소)
+ * - 홈        /                          (공개)
+ * - 서비스안내 /HCCT0010M.do               (공개, 웹 메뉴 '서비스소개 > 주요서비스')
+ * - 건강검진   /ReMd0020/REMD0020M.do      (로그인 필요, 웹 메뉴 '회원서비스 > 건강검진신청')
+ * - 건강정보   /HcCi0010/HCCI0010M.do      (로그인 필요, 웹 메뉴 '회원서비스 > 건강정보')
+ * - 마이페이지 /HcIt0010/HCIT0010R.do      (로그인 필요, 웹 메뉴 '회원서비스 > 나의서비스')
+ * 웹사이트에 '병원검색', '심리케어', '마이페이지' 메뉴는 아직 없어서 가장 가까운 메뉴로 연결했습니다.
+ * 현재 웹 주소의 경로가 path 로 시작하면 해당 탭이 선택 표시됩니다. (쿼리는 비교하지 않음)
  */
 export const TABS: TabItem[] = [
   { title: '홈', icon: 'home-outline', activeIcon: 'home', path: '/' },
-  { title: '상담·예약', icon: 'calendar-outline', activeIcon: 'calendar', path: '/reservation' }, // TODO
-  { title: '병원검색', icon: 'search-outline', activeIcon: 'search', path: '/hospital' }, // TODO
-  { title: '건강정보', icon: 'heart-outline', activeIcon: 'heart', path: '/health' }, // TODO
-  { title: '마이페이지', icon: 'person-outline', activeIcon: 'person', path: '/mypage' }, // TODO
+  { title: '서비스안내', icon: 'grid-outline', activeIcon: 'grid', path: menu('/HCCT0010M.do', 'CS0201', '주요서비스') },
+  { title: '건강검진', icon: 'medkit-outline', activeIcon: 'medkit', path: menu('/ReMd0020/REMD0020M.do', 'CS0304', '건강검진신청') },
+  { title: '건강정보', icon: 'heart-outline', activeIcon: 'heart', path: menu('/HcCi0010/HCCI0010M.do', 'CS0302', '건강정보') },
+  { title: '마이페이지', icon: 'person-outline', activeIcon: 'person', path: menu('/HcIt0010/HCIT0010R.do', 'CS0301', '나의서비스') },
 ];
 
 /** 스플래시(시작 화면)를 최대로 보여줄 시간 (밀리초). 웹 첫 로딩이 늦어도 이 시간이 지나면 닫힙니다. */
