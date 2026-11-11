@@ -83,6 +83,11 @@ export function cachedPushInfo(): PushTokenInfo | null {
 
 /** 알림 데이터에서 열 주소(data.url)를 꺼냅니다. */
 export function urlFromNotification(n: Notifications.Notification | undefined | null): string | null {
-  const url = n?.request?.content?.data?.url;
-  return typeof url === 'string' && url.length > 0 ? url : null;
+  // 1) Expo 형식: 페이로드의 "body": { "url": ... } 가 content.data 로 들어옵니다.
+  const fromData = n?.request?.content?.data?.url;
+  if (typeof fromData === 'string' && fromData.length > 0) return fromData;
+  // 2) APNs 직접 발송: 페이로드 최상위 "url" (iOS 는 trigger.payload 에 원본 전체가 들어 있음)
+  const trigger = n?.request?.trigger as { type?: string; payload?: Record<string, unknown> } | null | undefined;
+  const fromPayload = trigger?.payload?.url;
+  return typeof fromPayload === 'string' && fromPayload.length > 0 ? fromPayload : null;
 }

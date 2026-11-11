@@ -166,6 +166,9 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'getPushToken' })
 }
 ```
   - `url` (선택): 알림을 누르면 앱이 이 주소를 엽니다. `/경로` 또는 전체 주소 모두 가능. 앱이 꺼져 있을 때도 동작합니다.
+  - 최상위 `"url"` 또는 `"body": { "url": "..." }` 둘 다 인식합니다.
+- 맥에서 테스트 발송: `node ~/.kdc-tools/send-push.mjs <기기토큰> "제목" "내용" [url] [--prod]`
+  (키 파일은 `~/.kdc-secrets/AuthKey_WJDBC4ZJK4.p8`, 저장소에는 절대 넣지 않음)
 - 앱이 켜져 있을 때도 배너가 표시됩니다.
 - (선택) Expo 푸시 서비스를 쓰려면 EAS 프로젝트를 만들고 `app.config.ts` 의 `extra.eas.projectId` 를 넣으면 `expoToken` 도 채워집니다.
 
