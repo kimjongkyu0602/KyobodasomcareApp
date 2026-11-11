@@ -82,9 +82,13 @@ Xcode 로 직접 하는 경우:
 | `START_URL` | `https://www.kyobodasomcare.com` | 앱을 열면 처음 보여줄 주소 |
 | `INTERNAL_HOSTS` | `['kyobodasomcare.com']` | 앱 안에서 열 도메인 (하위 도메인 포함). 그 외 링크는 Safari |
 | `USER_AGENT_SUFFIX` | `KDCHealthcareApp/iOS` | User-Agent 끝에 붙는 값. 웹에서 앱 접속 판별용 |
-| `CUSTOMER_CENTER` | `1588-7524` | 브리지 `call` 의 기본 번호 |
+| `CUSTOMER_CENTER` | `1588-7524` | 더보기 '고객센터 전화'와 브리지 `call` 의 기본 번호 (번호는 이 한 곳만 바꾸면 됨, 최종 확인 필요) |
+| `CONTACT_PATH` | `/CSCT0010M.do?menuId=CS0403` | 더보기 '문의하기' |
+| `SERVICE_INFO_PATH` | `/HCCT0010M.do?menuId=CS0201` | 더보기 '서비스안내' |
+| `PRIVACY_POLICY_URL` / `TERMS_URL` | `''` | 비어 있으면 웹 첫 화면 하단의 약관 팝업(`viewBottom`)을 띄움. **웹팀이 고정 주소를 만들면 여기에 입력** |
+| `APP_LOCK_AFTER_MS` | 5분 | 생체인증 잠금: 이 시간 이상 백그라운드에 있다 돌아오면 다시 잠금 |
 | `TABS_ENABLED` | `true` | 하단 탭 메뉴 표시 여부 |
-| `TABS` | 홈 `/`, 서비스안내 `/HCCT0010M.do`, 건강검진 `/ReMd0020/REMD0020M.do`, 건강정보 `/HcCi0010/HCCI0010M.do`, 마이페이지(나의서비스) `/HcIt0010/HCIT0010R.do` | 웹 메뉴의 실제 주소 (menuId/menuName 쿼리 포함). 건강검진·건강정보·마이페이지는 로그인 필요 |
+| `TABS` | 홈 `/`, 건강검진 `/ReMd0020/REMD0020M.do`, 건강정보 `/HcCi0010/HCCI0010M.do`, 마이페이지(나의서비스) `/HcIt0010/HCIT0010R.do`, 더보기(네이티브) | 웹 메뉴의 실제 주소 (menuId 쿼리 포함). 건강검진·건강정보·마이페이지는 로그인 필요. `native: 'more'` 탭은 네이티브 화면 |
 | `SPLASH_MAX_MS` | `3000` | 스플래시 최대 표시 시간 |
 
 웹 쪽에서 앱 접속 판별 예시:
@@ -92,6 +96,14 @@ Xcode 로 직접 하는 경우:
 const isApp = /KDCHealthcareApp\/iOS/.test(navigator.userAgent) || !!window.kdcApp;
 // 앱 안에서는 하단 탭이 네이티브로 있으므로 웹의 하단 메뉴는 숨기는 것을 권장합니다.
 ```
+
+## 네이티브 화면 (웹 화면 아님)
+- **첫 실행 안내** (`src/components/Onboarding.tsx`): 서비스 소개 / 건강검진·상담 예약 / 알림 안내 3장, 건너뛰기·다음. 한 번만 표시(AsyncStorage `kdc.onboardingDone`). 알림 권한은 마지막 장의 **알림 받기**를 눌렀을 때만 요청하고, "알림 없이 시작하기"로 건너뛸 수 있음. 이미 권한을 정한 기기에서는 "시작하기"만 표시
+- **더보기 탭** (`src/components/MoreScreen.tsx`)
+  - 알림 받기: 현재 iOS 권한 상태 표시. 켜기 → (처음이면) 권한 요청, 이미 거부했으면 iOS 설정 안내. 끄기 → iOS 설정 안내 (앱에서 직접 끌 수 없음)
+  - 생체인증(Face ID) 잠금: 켤 때 인증을 한 번 확인한 뒤 저장. 켜져 있으면 앱 실행 시와 5분 이상 백그라운드 후 돌아올 때 잠금 화면 + Face ID. Face ID 실패 시 **기기 암호**로 해제 가능. Face ID·기기 암호가 모두 없으면 잠그지 않고 설정을 끔 (사용자가 갇히지 않도록)
+  - 고객센터 전화, 문의하기, 서비스안내, 보고 있던 화면 공유(iOS 공유 시트), 캐시 삭제(웹 캐시·웹 저장소 삭제, **쿠키는 유지되어 로그인 유지**), 개인정보처리방침, 이용약관, 앱 버전(빌드)
+- **잠금 화면** (`src/components/AppLockScreen.tsx`), 잠금 로직 `src/lib/useAppLock.ts`
 
 ## 앱 동작 요약
 - 로그인 쿠키/세션 유지 (`sharedCookiesEnabled`), 스와이프 뒤로 가기, 당겨서 새로고침, 상단 로딩 바, 동영상 인라인 재생
@@ -106,7 +118,7 @@ const isApp = /KDCHealthcareApp\/iOS/.test(navigator.userAgent) || !!window.kdcA
 - 서버 오류(5xx) 시 "일시적인 오류가 발생했습니다" 화면 + 다시 시도
 - 앱을 열면 아이콘 배지 숫자 초기화
 - 웹 프로세스가 종료되면(메모리 부족 등) 자동 다시 로드
-- 첫 화면이 뜨면 알림 권한 요청 + App Store 새 버전 확인 ("새 버전이 있습니다" → 업데이트/나중에)
+- 첫 화면이 뜨면 App Store 새 버전 확인 ("새 버전이 있습니다" → 업데이트/나중에). 알림 권한 창은 자동으로 띄우지 않음 (온보딩 마지막 장 / 더보기 / 웹 브리지 `requestPushPermission` 에서만 요청). 이미 허용된 기기는 실행 시 토큰을 받아 웹에 전달
 - 파일 다운로드(Content-Disposition: attachment 등) → 앱이 받은 뒤 공유 시트(파일에 저장/공유) 표시
   - 제한: `blob:` / `data:` 주소 다운로드는 지원하지 않습니다. 웹에서는 일반 https 다운로드 주소를 써 주세요.
 
