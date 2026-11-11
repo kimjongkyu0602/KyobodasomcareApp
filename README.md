@@ -1,0 +1,183 @@
+# 교보다솜케어 헬스케어서비스 iOS 앱 (React Native / Expo)
+
+웹사이트(`https://www.kyobodasomcare.com`)를 앱 화면 전체에 띄우는 **하이브리드 앱 껍데기**입니다.
+화면과 기능은 웹에서 구현하고, 앱은 심사와 사용성에 필요한 네이티브 기능(푸시, Face ID, 하단 탭, 스플래시 등)만 담당합니다.
+
+> 이전 SwiftUI 네이티브 버전은 `swift-native` 브랜치에 그대로 보관돼 있습니다.
+
+- 번들 ID: `com.kyobodasomcare.app` / 팀 ID: `V388NH26FH`
+- 앱 이름: `교보다솜케어 헬스케어서비스` / 버전 `1.0.0` (빌드 `2`)
+- Expo SDK 58 · React Native 0.88 · TypeScript
+
+## 폴더 구조
+
+```
+app.config.ts          앱 이름, 번들 ID, 버전, 권한 문구, 개인정보 매니페스트, 플러그인 설정
+index.ts               앱 시작점
+assets/icon.png        1024x1024 앱 아이콘 (스플래시 로고로도 사용)
+src/config.ts          ★ 자주 바꾸는 설정값 (시작 주소, 내부 도메인, 탭 메뉴 등)
+src/App.tsx            메인 화면 (웹뷰 + 하단 탭 + 오류 화면 + 푸시 처리)
+src/components/        NetworkError(네트워크 오류 화면), TabBar(하단 탭), ProgressBar(로딩 바)
+src/lib/bridge.ts      웹 ↔ 앱 브리지
+src/lib/push.ts        푸시 알림 (APNs 기기 토큰)
+src/lib/biometric.ts   Face ID
+src/lib/updateCheck.ts App Store 새 버전 확인
+src/lib/download.ts    파일 다운로드 → 공유 시트
+src/lib/url.ts         내부/외부 링크 판별, 탭 선택 계산
+ios/                   (git 에 없음) `npx expo prebuild` 로 자동 생성되는 Xcode 프로젝트
+```
+
+### ios/ 폴더를 git 에 올리지 않는 이유
+Expo의 CNG(Continuous Native Generation) 방식으로, `ios/` 는 `app.config.ts` 와 플러그인 설정으로부터
+`npx expo prebuild` 가 매번 똑같이 만들어 냅니다. 네이티브 설정은 `ios/` 를 직접 고치지 말고
+`app.config.ts` 를 고친 뒤 prebuild 를 다시 실행하세요. (직접 고친 내용은 prebuild 때 지워집니다)
+
+## 처음 설치 (맥)
+
+이 맥에는 아래 도구가 사용자 폴더에 설치돼 있습니다. (`~/.zprofile` 에 PATH 설정 완료)
+- Node.js LTS: `~/.local/node`
+- Ruby 3.4 (Homebrew portable-ruby): `~/.local/ruby`, gem 설치 위치 `~/.local/gems`
+- CocoaPods: `~/.local/gems/bin/pod`
+
+새 터미널을 열면 바로 `node`, `npm`, `pod` 를 쓸 수 있습니다.
+
+## 실행 / 빌드
+
+```bash
+cd ~/Developer/KyobodasomcareApp
+npm install                                  # 패키지 설치
+npx expo prebuild --platform ios --clean     # ios/ 폴더 생성 (pod install 포함)
+open ios/*.xcworkspace                       # Xcode 로 열기 (.xcodeproj 가 아니라 .xcworkspace)
+```
+
+Xcode에서 기기를 고르고 ▶ 실행하거나, 터미널에서 바로 실행할 수도 있습니다.
+
+```bash
+npx expo run:ios                 # 시뮬레이터 (개발 모드, Metro 서버 필요)
+npx expo run:ios --device        # 케이블로 연결한 아이폰
+npx expo run:ios --configuration Release
+```
+
+### App Store Connect 업로드
+가장 쉬운 방법은 스크립트입니다. (업로드는 하지 않고 IPA 파일만 만듭니다)
+```bash
+./scripts/build-ipa.sh      # → build/export/app.ipa (Apple Distribution 서명, 푸시 production)
+```
+만든 IPA 는 Transporter 앱이나 Xcode Organizer 로 올립니다.
+
+> 참고: 팀에 등록된 테스트 기기가 없으면 Xcode 의 Product > Archive 가
+> "Your team has no devices from which to generate a provisioning profile" 오류로 실패합니다.
+> 스크립트는 서명 없이 Archive 한 뒤 Export 단계에서 배포용으로 서명해 이 문제를 피합니다.
+> 아이폰을 한 번 케이블로 연결해 팀에 등록하면 아래 Xcode 방법도 그대로 쓸 수 있습니다.
+
+Xcode 로 직접 하는 경우:
+1. `app.config.ts` 의 `ios.buildNumber` 를 1 올립니다. (업로드마다 달라야 함)
+2. `npx expo prebuild --platform ios --clean`
+3. Xcode에서 `ios/*.xcworkspace` 열기 → 기기 `Any iOS Device (arm64)` → Product > Archive → Distribute App → App Store Connect
+
+## 설정값 (`src/config.ts`)
+
+| 이름 | 기본값 | 설명 |
+| --- | --- | --- |
+| `START_URL` | `https://www.kyobodasomcare.com` | 앱을 열면 처음 보여줄 주소 |
+| `INTERNAL_HOSTS` | `['kyobodasomcare.com']` | 앱 안에서 열 도메인 (하위 도메인 포함). 그 외 링크는 Safari |
+| `USER_AGENT_SUFFIX` | `KDCHealthcareApp/iOS` | User-Agent 끝에 붙는 값. 웹에서 앱 접속 판별용 |
+| `CUSTOMER_CENTER` | `1588-7524` | 브리지 `call` 의 기본 번호 |
+| `TABS_ENABLED` | `true` | 하단 탭 메뉴 표시 여부 |
+| `TABS` | 홈 `/`, 상담·예약 `/reservation`, 병원검색 `/hospital`, 건강정보 `/health`, 마이페이지 `/mypage` | **TODO: 실제 웹 경로로 바꿔야 함** |
+| `SPLASH_MAX_MS` | `3000` | 스플래시 최대 표시 시간 |
+
+웹 쪽에서 앱 접속 판별 예시:
+```js
+const isApp = /KDCHealthcareApp\/iOS/.test(navigator.userAgent) || !!window.kdcApp;
+// 앱 안에서는 하단 탭이 네이티브로 있으므로 웹의 하단 메뉴는 숨기는 것을 권장합니다.
+```
+
+## 앱 동작 요약
+- 로그인 쿠키/세션 유지 (`sharedCookiesEnabled`), 스와이프 뒤로 가기, 당겨서 새로고침, 상단 로딩 바, 동영상 인라인 재생
+- 우리 도메인 링크는 앱 안에서, 다른 도메인 링크를 **누르면** Safari 로 열림 (리다이렉트·결제창 이동은 앱 안에서 유지)
+- `tel:` `mailto:` `sms:` 및 기타 앱 스킴(결제·본인인증 앱 등)은 해당 앱으로 연결
+- `target="_blank"` / `window.open`: 우리 도메인은 같은 화면에서, 다른 도메인은 Safari
+- 웹의 `alert` / `confirm` / `prompt` 는 iOS 기본 팝업으로 표시
+- `<input type="file">` 사진/카메라/파일 업로드, 위치 정보(geolocation) 사용 가능
+- 네트워크 오류 시 "네트워크 연결 오류" 화면, 인터넷이 다시 연결되면 자동 새로고침
+- 웹 프로세스가 종료되면(메모리 부족 등) 자동 다시 로드
+- 첫 화면이 뜨면 알림 권한 요청 + App Store 새 버전 확인 ("새 버전이 있습니다" → 업데이트/나중에)
+- 파일 다운로드(Content-Disposition: attachment 등) → 앱이 받은 뒤 공유 시트(파일에 저장/공유) 표시
+  - 제한: `blob:` / `data:` 주소 다운로드는 지원하지 않습니다. 웹에서는 일반 https 다운로드 주소를 써 주세요.
+
+## 웹 ↔ 앱 브리지 (웹 개발팀용)
+
+앱은 페이지가 열리기 전에 `window.kdcApp` 을 넣어 줍니다.
+
+### 1) Promise 방식 (권장)
+```js
+if (window.kdcApp) {
+  const info = await window.kdcApp.request('getAppInfo');
+  // { action:'getAppInfo', platform:'ios', appVersion:'1.0.0', buildNumber:'2', bundleId, osVersion, deviceModel, userAgentSuffix }
+
+  const push = await window.kdcApp.request('getPushToken');
+  // { action:'getPushToken', token:'<APNs 기기 토큰 hex>', type:'apns', expoToken:null, permission:'granted' }
+
+  const bio = await window.kdcApp.request('biometricAvailable');
+  // { available:true, hasHardware:true, enrolled:true, type:'faceId' | 'touchId' | 'none' }
+
+  const auth = await window.kdcApp.request('biometricAuth', { reason: '간편 로그인을 위해 인증해 주세요.' });
+  // { success:true } 또는 { success:false, error:'user_cancel' ... }
+
+  await window.kdcApp.request('openExternal', { url: 'https://example.com' }); // Safari/다른 앱으로 열기
+  await window.kdcApp.request('call', { number: '1588-7524' });               // 전화 (번호 생략 시 고객센터)
+  await window.kdcApp.request('requestPushPermission');                       // 알림 권한 다시 요청
+}
+```
+
+### 2) 메시지 방식 (직접 postMessage)
+```js
+window.kdcAppOnMessage = function (msg) {
+  // 앱이 보내는 모든 응답/이벤트가 여기로 옵니다: { action, callbackId?, ...결과 }
+  if (msg.action === 'pushToken') {
+    // 페이지가 로드될 때마다 앱이 자동으로 보내 주는 푸시 토큰
+    // 로그인 상태라면 서버에 { userId, token: msg.token, platform: 'ios' } 를 저장하세요.
+  }
+};
+window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'getPushToken' }));
+```
+
+| action | 보내는 값 | 응답 |
+| --- | --- | --- |
+| `getPushToken` | - | `token`, `type:'apns'`, `expoToken`, `permission` |
+| `requestPushPermission` | - | 위와 같음 |
+| `biometricAvailable` | - | `available`, `hasHardware`, `enrolled`, `type` |
+| `biometricAuth` | `reason` (선택) | `success`, `error` |
+| `openExternal` | `url` | `success` |
+| `call` | `number` (선택) | `success` |
+| `getAppInfo` | - | `platform`, `appVersion`, `buildNumber`, `bundleId`, `osVersion`, `deviceModel` |
+| (자동) `pushToken` | - | 페이지 로드마다 앱 → 웹으로 전송 |
+
+## 푸시 알림
+
+- 앱은 **APNs 기기 토큰**을 사용합니다 (Expo 푸시 서비스 아님). 서버가 APNs 로 직접 보냅니다.
+- 개발 빌드(Xcode 실행)는 APNs **sandbox**, TestFlight/App Store 빌드는 **production** 서버를 써야 합니다.
+- 페이로드 예시 (APNs HTTP/2, `apns-topic: com.kyobodasomcare.app`):
+```json
+{
+  "aps": { "alert": { "title": "예약 확정", "body": "3월 12일 오전 10시 상담이 확정되었습니다." }, "sound": "default" },
+  "url": "/reservation/detail?id=123"
+}
+```
+  - `url` (선택): 알림을 누르면 앱이 이 주소를 엽니다. `/경로` 또는 전체 주소 모두 가능. 앱이 꺼져 있을 때도 동작합니다.
+- 앱이 켜져 있을 때도 배너가 표시됩니다.
+- (선택) Expo 푸시 서비스를 쓰려면 EAS 프로젝트를 만들고 `app.config.ts` 의 `extra.eas.projectId` 를 넣으면 `expoToken` 도 채워집니다.
+
+## 남은 수동 작업
+
+1. **APNs 인증 키 발급**: Apple Developer > Certificates, IDs & Profiles > Keys 에서 + → "Apple Push Notifications service (APNs)" 체크 → `.p8` 다운로드 (한 번만 받을 수 있음). Key ID, 팀 ID(`V388NH26FH`)와 함께 서버팀에 전달. `.p8` 은 git 에 올리지 마세요.
+2. **App ID 푸시 기능**: Identifiers > `com.kyobodasomcare.app` 에서 Push Notifications 가 켜져 있는지 확인 (Xcode 자동 서명이 보통 켜 줍니다).
+3. **서버 발송**: 웹 로그인 시 브리지로 받은 토큰을 회원과 연결해 저장하고, APNs 로 발송하는 서버 기능 구현.
+4. **탭 경로**: `src/config.ts` 의 `TABS` 경로를 실제 웹 주소로 변경. 앱 안에서는 웹의 하단 메뉴를 숨기는 처리.
+5. **심사 준비 (웹/App Store Connect)**
+   - 앱 안에서 **회원 탈퇴** 기능 (필수, 가이드라인 5.1.1(v))
+   - **개인정보처리방침 URL** (App Store Connect 입력 + 웹 안에서 접근 가능)
+   - **앱 개인정보 항목**(수집 데이터) 작성
+   - **심사용 테스트 계정** (ID/비밀번호, 본인인증이 필요하면 우회 방법 안내)
+   - 의료·건강 정보 관련 문구/면책 고지 확인
