@@ -44,10 +44,11 @@ export type TabItem = {
 
 /**
  * 웹 메뉴 주소 만들기
- * 웹사이트 메뉴(goMenu)는 menuId, menuName 을 쿼리로 함께 넘겨 상단 메뉴 선택 표시를 합니다.
+ * 웹사이트 메뉴(goMenu)는 menuId 를 쿼리로 넘겨 상단 메뉴 선택 표시를 합니다.
+ * menuName 은 넘기지 않습니다: 서버가 한글 쿼리를 ISO-8859-1 로 해석해 화면 제목이 깨집니다. (웹팀 확인 필요)
+ * 두 번째 인자(메뉴 이름)는 참고용으로만 남겨 둡니다.
  */
-const menu = (path: string, menuId: string, menuName: string) =>
-  `${path}?menuId=${menuId}&menuName=${encodeURIComponent(menuName)}`;
+const menu = (path: string, menuId: string, _menuName: string) => `${path}?menuId=${menuId}`;
 
 /**
  * 하단 탭 메뉴 목록 (2026-11-11 웹사이트 메뉴 기준으로 확인한 실제 주소)
