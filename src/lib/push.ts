@@ -64,6 +64,18 @@ export async function registerForPush(askPermission = true): Promise<PushTokenIn
   return info;
 }
 
+/**
+ * 토큰이 바뀌었을 때(addPushTokenListener) 새 토큰을 저장합니다.
+ * 주의: 리스너 안에서 getDevicePushTokenAsync 를 다시 부르면 무한 반복되므로 받은 값만 저장합니다.
+ */
+export function updateCachedToken(data: unknown): PushTokenInfo {
+  const token = typeof data === 'string' ? data : JSON.stringify(data);
+  const prev = cached ?? { token: null, type: 'apns' as const, expoToken: null, permission: 'granted' };
+  if (prev.token !== token) console.log('[KDC] APNs device token (변경됨):', token);
+  cached = { ...prev, token, error: undefined };
+  return cached;
+}
+
 /** 마지막으로 받은 토큰 정보 (아직 없으면 null) */
 export function cachedPushInfo(): PushTokenInfo | null {
   return cached;

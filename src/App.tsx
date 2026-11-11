@@ -19,7 +19,7 @@ import ProgressBar from './components/ProgressBar';
 import TabBar from './components/TabBar';
 import { buildDispatchScript, handleBridgeMessage, INJECTED_BEFORE_LOAD, type BridgeRequest } from './lib/bridge';
 import { downloadAndShare } from './lib/download';
-import { cachedPushInfo, registerForPush, urlFromNotification } from './lib/push';
+import { cachedPushInfo, registerForPush, updateCachedToken, urlFromNotification } from './lib/push';
 import { checkForUpdate } from './lib/updateCheck';
 import { activeTabIndex, isInternalUrl, resolveUrl, schemeOf } from './lib/url';
 
@@ -138,8 +138,10 @@ function Main() {
         Notifications.clearLastNotificationResponse();
       }
     });
-    const tokenSub = Notifications.addPushTokenListener(() => {
-      registerForPush(false).then(injectPushToken).catch(() => {});
+    // 토큰이 바뀌면 받은 값만 저장해서 웹에 알려 줍니다. (여기서 토큰을 다시 요청하면 무한 반복됨)
+    const tokenSub = Notifications.addPushTokenListener((t) => {
+      updateCachedToken(t.data);
+      injectPushToken();
     });
     return () => {
       sub.remove();
