@@ -97,10 +97,14 @@ const isApp = /KDCHealthcareApp\/iOS/.test(navigator.userAgent) || !!window.kdcA
 - 로그인 쿠키/세션 유지 (`sharedCookiesEnabled`), 스와이프 뒤로 가기, 당겨서 새로고침, 상단 로딩 바, 동영상 인라인 재생
 - 우리 도메인 링크는 앱 안에서, 다른 도메인 링크를 **누르면** Safari 로 열림 (리다이렉트·결제창 이동은 앱 안에서 유지)
 - `tel:` `mailto:` `sms:` 및 기타 앱 스킴(결제·본인인증 앱 등)은 해당 앱으로 연결
-- `target="_blank"` / `window.open`: 우리 도메인은 같은 화면에서, 다른 도메인은 Safari
-- 웹의 `alert` / `confirm` / `prompt` 는 iOS 기본 팝업으로 표시
-- `<input type="file">` 사진/카메라/파일 업로드, 위치 정보(geolocation) 사용 가능
+- 링크 `target="_blank"`: 우리 도메인은 같은 화면에서, 다른 도메인은 Safari
+- 스크립트 `window.open`: 앱 안의 **팝업 웹뷰**(상단 "닫기" 버튼)로 열림. `window.opener` / `postMessage` / `window.close()` 가 그대로 동작하므로 휴대폰 본인확인(mobile-ok)·간편인증(ez-iok) 로그인 창이 앱에서 정상 동작합니다. 팝업 안의 앱 스킴(PASS·카카오·토스 등)은 해당 앱으로 연결
+  - 구현: `patches/react-native-webview+14.0.1.patch` (patch-package, `npm install` 시 자동 적용). react-native-webview 버전을 올리면 패치를 다시 만들어야 합니다.
+- 웹의 `alert` / `confirm` / `prompt` 는 iOS 기본 팝업으로 표시 (버튼: 확인/취소)
+- `<input type="file">` 사진/카메라/파일 업로드 (위치 정보는 사용하는 화면이 없어 권한을 넣지 않았습니다)
 - 네트워크 오류 시 "네트워크 연결 오류" 화면, 인터넷이 다시 연결되면 자동 새로고침
+- 서버 오류(5xx) 시 "일시적인 오류가 발생했습니다" 화면 + 다시 시도
+- 앱을 열면 아이콘 배지 숫자 초기화
 - 웹 프로세스가 종료되면(메모리 부족 등) 자동 다시 로드
 - 첫 화면이 뜨면 알림 권한 요청 + App Store 새 버전 확인 ("새 버전이 있습니다" → 업데이트/나중에)
 - 파일 다운로드(Content-Disposition: attachment 등) → 앱이 받은 뒤 공유 시트(파일에 저장/공유) 표시
@@ -171,6 +175,10 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'getPushToken' })
   (키 파일은 `~/.kdc-secrets/AuthKey_WJDBC4ZJK4.p8`, 저장소에는 절대 넣지 않음)
 - 앱이 켜져 있을 때도 배너가 표시됩니다.
 - (선택) Expo 푸시 서비스를 쓰려면 EAS 프로젝트를 만들고 `app.config.ts` 의 `extra.eas.projectId` 를 넣으면 `expoToken` 도 채워집니다.
+
+## 심사 점검표
+
+[docs/REVIEW_CHECKLIST.md](docs/REVIEW_CHECKLIST.md) 참고 (앱/웹팀/담당자 할 일 구분).
 
 ## 남은 수동 작업
 
