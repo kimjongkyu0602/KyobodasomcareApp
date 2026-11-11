@@ -92,8 +92,8 @@ export default function Onboarding({ onFinish, onRequestPush }: Props) {
                 <Ionicons name={s.icon} size={72} color={BRAND_COLOR} />
               )}
             </View>
-            <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.body}>{s.body}</Text>
+            <Text style={styles.title} maxFontSizeMultiplier={1.5}>{s.title}</Text>
+            <Text style={styles.body} maxFontSizeMultiplier={1.5}>{s.body}</Text>
           </View>
         ))}
       </ScrollView>

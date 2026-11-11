@@ -25,12 +25,20 @@ const config: ExpoConfig = {
       CFBundleDevelopmentRegion: 'ko',
       NSCameraUsageDescription: '서류·사진 업로드를 위해 카메라에 접근합니다.',
       NSPhotoLibraryUsageDescription: '서류·사진 업로드를 위해 사진 보관함에 접근합니다.',
-      NSFaceIDUsageDescription: 'Face ID로 간편하게 로그인하기 위해 사용합니다.',
+      NSFaceIDUsageDescription: '앱 잠금을 해제할 때 Face ID로 본인을 확인하기 위해 사용합니다.',
     },
     privacyManifests: {
       NSPrivacyTracking: false,
       NSPrivacyTrackingDomains: [],
-      NSPrivacyCollectedDataTypes: [],
+      // 앱이 직접 다루는 수집 항목: 푸시 알림용 기기 토큰(웹 서버로 전달). 웹 화면이 수집하는 항목은 App Store Connect 개인정보 답변에 따로 입력
+      NSPrivacyCollectedDataTypes: [
+        {
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeDeviceID',
+          NSPrivacyCollectedDataTypeLinked: true,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+      ],
       NSPrivacyAccessedAPITypes: [
         {
           NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
@@ -69,7 +77,7 @@ const config: ExpoConfig = {
     ],
     [
       'expo-local-authentication',
-      { faceIDPermission: 'Face ID로 간편하게 로그인하기 위해 사용합니다.' },
+      { faceIDPermission: '앱 잠금을 해제할 때 Face ID로 본인을 확인하기 위해 사용합니다.' },
     ],
   ],
 };

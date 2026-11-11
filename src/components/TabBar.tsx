@@ -28,7 +28,7 @@ export default function TabBar({ tabs, activeIndex, onPress }: Props) {
             onPress={() => onPress(tab, i)}
             style={styles.item}>
             <Ionicons name={(active ? tab.activeIcon : tab.icon) as IconName} size={24} color={color} />
-            <Text style={[styles.label, { color }]} numberOfLines={1}>
+            <Text style={[styles.label, { color }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
               {tab.title}
             </Text>
           </Pressable>
