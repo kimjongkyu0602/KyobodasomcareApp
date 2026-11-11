@@ -126,7 +126,7 @@ const isApp = /KDCHealthcareApp\/iOS/.test(navigator.userAgent) || !!window.kdcA
 - 앱을 열면 아이콘 배지 숫자 초기화
 - 웹 프로세스가 종료되면(메모리 부족 등) 자동 다시 로드
 - 첫 화면이 뜨면 App Store 새 버전 확인 ("새 버전이 있습니다" → 업데이트/나중에). 알림 권한 창은 자동으로 띄우지 않음 (온보딩 마지막 장 / 더보기 / 웹 브리지 `requestPushPermission` 에서만 요청). 이미 허용된 기기는 실행 시 토큰을 받아 웹에 전달
-- 파일 다운로드(Content-Disposition: attachment 등) → 앱이 받은 뒤 공유 시트(파일에 저장/공유) 표시
+- 파일 다운로드(Content-Disposition: attachment 등) → 네이티브 WKDownload 로 받은 뒤 공유 시트(파일에 저장/공유) 표시. 원래 요청을 그대로 쓰므로 **POST 폼 다운로드**(예: 공시 첨부 `attachFileDownload` → `/fileDownload.do`)와 로그인 쿠키가 유지됩니다. (`patches/react-native-webview+14.0.1.patch`)
   - 제한: `blob:` / `data:` 주소 다운로드는 지원하지 않습니다. 웹에서는 일반 https 다운로드 주소를 써 주세요.
 
 ## 웹 ↔ 앱 브리지 (웹 개발팀용)
