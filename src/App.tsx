@@ -1,5 +1,5 @@
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Linking, StyleSheet, View } from 'react-native';
+import { Alert, AppState, Linking, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -9,6 +9,7 @@ import { WebView } from 'react-native-webview';
 import type {
   ShouldStartLoadRequest,
   WebViewErrorEvent,
+  WebViewHttpErrorEvent,
   WebViewMessageEvent,
   WebViewNavigation,
 } from 'react-native-webview/lib/WebViewTypes';
@@ -60,6 +61,7 @@ function Main() {
   const [currentUrl, setCurrentUrl] = useState<string>(sourceUrl);
   const [progress, setProgress] = useState(0);
   const [hasError, setHasError] = useState(false);
+  const [errorKind, setErrorKind] = useState<'network' | 'server'>('network');
   const hasErrorRef = useRef(false);
   const lastUrlRef = useRef<string>(sourceUrl);
   const firstLoadDone = useRef(false);
@@ -77,9 +79,20 @@ function Main() {
     return () => clearTimeout(t);
   }, [hideSplash]);
 
-  const setError = useCallback((v: boolean) => {
+  const setError = useCallback((v: boolean, kind: 'network' | 'server' = 'network') => {
     hasErrorRef.current = v;
     setHasError(v);
+    if (v) setErrorKind(kind);
+  }, []);
+
+  // 앱이 다시 화면에 나타나면 아이콘 배지 숫자를 지웁니다.
+  useEffect(() => {
+    const clearBadge = () => Notifications.setBadgeCountAsync(0).catch(() => {});
+    clearBadge();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') clearBadge();
+    });
+    return () => sub.remove();
   }, []);
 
   /** 웹뷰를 처음부터 다시 띄웁니다. (오류 화면에서 다시 시도할 때) */
@@ -173,6 +186,18 @@ function Main() {
     [hideSplash, setError],
   );
 
+  /** 메인 화면이 서버 오류(5xx)를 받으면 안내 화면을 보여 줍니다. (4xx 는 웹 자체 안내 페이지를 그대로 둡니다) */
+  const onHttpError = useCallback(
+    (e: WebViewHttpErrorEvent) => {
+      const { statusCode, url } = e.nativeEvent;
+      if (statusCode < 500) return;
+      if (url) lastUrlRef.current = url;
+      hideSplash();
+      setError(true, 'server');
+    },
+    [hideSplash, setError],
+  );
+
   const onNavigationStateChange = useCallback((nav: WebViewNavigation) => {
     if (/^https?:/i.test(nav.url)) setCurrentUrl(nav.url);
   }, []);
@@ -196,7 +221,10 @@ function Main() {
     return true;
   }, []);
 
-  /** target="_blank" / window.open 처리: 우리 도메인은 같은 화면, 그 외는 Safari */
+  /**
+   * 링크 target="_blank" 처리: 우리 도메인은 같은 화면, 그 외는 Safari.
+   * (스크립트 window.open 은 네이티브 팝업 웹뷰로 열립니다. patches/react-native-webview 참고)
+   */
   const onOpenWindow = useCallback(
     (e: { nativeEvent: { targetUrl: string } }) => {
       const url = e.nativeEvent.targetUrl;
@@ -251,11 +279,9 @@ function Main() {
           allowsInlineMediaPlayback
           allowsFullscreenVideo
           mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
-          // 위치(병원검색), 파일 업로드(input type=file)
-          geolocationEnabled
+          // 파일 업로드(input type=file)
           allowFileAccess
-          // 새 창(target=_blank)은 같은 화면에서
-          setSupportMultipleWindows={false}
+          // 링크 target=_blank 는 onOpenWindow, window.open 은 팝업 웹뷰(닫기 버튼, window.close 지원)
           javaScriptCanOpenWindowsAutomatically
           onOpenWindow={onOpenWindow}
           allowsLinkPreview={false}
@@ -266,6 +292,7 @@ function Main() {
           onLoadProgress={(e) => setProgress(e.nativeEvent.progress)}
           onLoadEnd={onLoadEnd}
           onError={onError}
+          onHttpError={onHttpError}
           renderError={() => <View style={styles.blank} />}
           onMessage={onMessage}
           onFileDownload={(e) => downloadAndShare(e.nativeEvent.downloadUrl)}
@@ -273,7 +300,7 @@ function Main() {
           onContentProcessDidTerminate={() => webRef.current?.reload()}
         />
         <ProgressBar progress={progress} />
-        {hasError && <NetworkError onRetry={() => reloadFresh()} />}
+        {hasError && <NetworkError kind={errorKind} onRetry={() => reloadFresh()} />}
       </View>
       {TABS_ENABLED && TABS.length > 0 && (
         <TabBar tabs={TABS} activeIndex={activeTabIndex(currentUrl)} onPress={onTabPress} />
