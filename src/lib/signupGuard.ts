@@ -23,6 +23,7 @@ export const SIGNUP_GUARD_SCRIPT = `
     safeTexts: SIGNUP_GUARD.safeTexts,
     promoTexts: SIGNUP_GUARD.promoTexts,
     urlPatterns: SIGNUP_GUARD.urlPatterns,
+    faqItems: SIGNUP_GUARD.faqItems,
   })};
   var urlRes = C.urlPatterns.map(function (p) { return new RegExp(p, 'i'); });
   var CLICKABLE = 'a, button, input[type=button], input[type=submit], [onclick], [role=button]';
@@ -66,6 +67,15 @@ export const SIGNUP_GUARD_SCRIPT = `
       if (q.getAttribute('data-kdc-hidden')) continue;
       var t = norm(q.textContent);
       if (t.length > 0 && t.length <= 60 && has(C.promoTexts, t) && !q.querySelector(CLICKABLE)) { hide(q); hideEmptyParent(q); }
+    }
+    for (var k = 0; k < C.faqItems.length; k++) {
+      var items = document.querySelectorAll(C.faqItems[k].item);
+      for (var m = 0; m < items.length; m++) {
+        var it = items[m];
+        if (it.getAttribute('data-kdc-hidden')) continue;
+        var tt = it.querySelector(C.faqItems[k].title);
+        if (tt && has(C.texts, norm(tt.textContent))) hide(it);
+      }
     }
   }
   var timer = null;

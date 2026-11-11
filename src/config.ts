@@ -105,6 +105,8 @@ export const APP_STORE_LOOKUP_URL =
  * - promoTexts: 가입 권유 안내 문구 (짧은 문단만 숨김)
  * - urlPatterns: 주소(경로+쿼리, 대소문자 무시) 정규식. 링크 href/onclick 숨김과 화면 이동 차단에 함께 씁니다.
  *   주의: 'join' 만 쓰면 웹 스크립트의 .join( 과 겹치므로 '/join' 처럼 경로 형태로 적습니다.
+ * - faqItems: 제목에 texts 가 들어간 FAQ 항목을 통째로 숨깁니다. (자주하는질문의 '회원가입시 본인확인' 항목)
+ *   item: 항목 선택자, title: 항목 안 제목 선택자. 제목만 보고 판단하므로 다른 FAQ 는 숨기지 않습니다.
  * - redirectPath: 차단했을 때 보낼 화면
  */
 export const SIGNUP_GUARD = {
@@ -112,5 +114,6 @@ export const SIGNUP_GUARD = {
   safeTexts: ['로그인', '본인확인', '인증', '찾기', '탈퇴'],
   promoTexts: ['회원이 되어'],
   urlPatterns: ['/ussb\\d', '/join', 'signup', 'sign-up', 'memberjoin', 'joinmember'],
+  faqItems: [{ item: '.faq-box .item', title: '.title' }],
   redirectPath: '/login.do',
 };
