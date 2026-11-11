@@ -1,5 +1,5 @@
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Linking, StyleSheet, View } from 'react-native';
+import { Alert, AppState, Linking, Share, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,14 +14,28 @@ import type {
   WebViewNavigation,
 } from 'react-native-webview/lib/WebViewTypes';
 
-import { SPLASH_MAX_MS, START_URL, TABS, TABS_ENABLED, USER_AGENT_SUFFIX, type TabItem } from './config';
+import {
+  PRIVACY_POLICY_URL,
+  SPLASH_MAX_MS,
+  START_URL,
+  TABS,
+  TABS_ENABLED,
+  TERMS_URL,
+  USER_AGENT_SUFFIX,
+  type TabItem,
+} from './config';
+import AppLockScreen from './components/AppLockScreen';
+import MoreScreen from './components/MoreScreen';
 import NetworkError from './components/NetworkError';
+import Onboarding from './components/Onboarding';
 import ProgressBar from './components/ProgressBar';
 import TabBar from './components/TabBar';
 import { buildDispatchScript, handleBridgeMessage, INJECTED_BEFORE_LOAD, type BridgeRequest } from './lib/bridge';
 import { downloadAndShare } from './lib/download';
 import { cachedPushInfo, registerForPush, updateCachedToken, urlFromNotification } from './lib/push';
+import { getOnboardingDone, setOnboardingDone } from './lib/settings';
 import { checkForUpdate } from './lib/updateCheck';
+import { useAppLock } from './lib/useAppLock';
 import { activeTabIndex, isInternalUrl, resolveUrl, schemeOf } from './lib/url';
 
 // 웹 첫 화면이 뜰 때까지 네이티브 스플래시(흰 배경 + 로고)를 유지합니다.
@@ -65,6 +79,15 @@ function Main() {
   const hasErrorRef = useRef(false);
   const lastUrlRef = useRef<string>(sourceUrl);
   const firstLoadDone = useRef(false);
+  /** 다음 페이지 로드가 끝나면 실행할 스크립트 (약관 팝업 열기 등) */
+  const pendingScriptRef = useRef<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [onboardingDone, setOnboardingDoneState] = useState<boolean | null>(null);
+  const appLock = useAppLock();
+
+  useEffect(() => {
+    getOnboardingDone().then(setOnboardingDoneState);
+  }, []);
   const splashHidden = useRef(false);
 
   const hideSplash = useCallback(() => {
@@ -110,6 +133,7 @@ function Main() {
   const navigate = useCallback(
     (url: string) => {
       lastUrlRef.current = url;
+      setMoreOpen(false);
       if (hasErrorRef.current || !webRef.current) {
         reloadFresh(url);
         return;
@@ -162,19 +186,68 @@ function Main() {
     };
   }, [navigate, injectPushToken]);
 
+  /** 알림 권한을 요청하고(처음 한 번만 iOS 창이 뜸) 토큰을 웹에 알려 줍니다. 온보딩 마지막 장·더보기에서만 호출 */
+  const requestPush = useCallback(async () => {
+    try {
+      await registerForPush(true);
+      injectPushToken();
+    } catch {
+      // 무시
+    }
+  }, [injectPushToken]);
+
   const onLoadEnd = useCallback(() => {
     hideSplash();
     if (!firstLoadDone.current) {
       firstLoadDone.current = true;
-      // 첫 화면이 뜬 뒤에 알림 권한을 요청하고, 새 버전을 확인합니다.
-      registerForPush(true)
+      // 권한 창은 띄우지 않고, 이미 허용된 경우에만 토큰을 받아 웹에 알려 줍니다.
+      registerForPush(false)
         .then(injectPushToken)
         .catch(() => {});
       checkForUpdate();
     } else {
       injectPushToken();
     }
-  }, [hideSplash, injectPushToken]);
+    const pending = pendingScriptRef.current;
+    if (pending) {
+      pendingScriptRef.current = null;
+      setTimeout(() => inject(pending), 300);
+    }
+  }, [hideSplash, injectPushToken, inject]);
+
+  /** 개인정보처리방침 / 이용약관: 고정 주소가 있으면 그 주소, 없으면 웹 첫 화면의 약관 팝업 */
+  const openPolicy = useCallback(
+    (kind: 'privacy' | 'terms') => {
+      const url = kind === 'privacy' ? PRIVACY_POLICY_URL : TERMS_URL;
+      if (url) {
+        navigate(resolveUrl(url));
+        return;
+      }
+      const dialog = kind === 'privacy' ? 'case1' : 'case2';
+      pendingScriptRef.current = `(function(){
+        if (typeof viewBottom === 'function') { viewBottom('${dialog}'); }
+        else if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify({ action: '__policyMissing' })); }
+      })(); true;`;
+      navigate(START_URL);
+    },
+    [navigate],
+  );
+
+  const shareCurrentPage = useCallback(() => {
+    const url = /^https?:/i.test(currentUrl) ? currentUrl : START_URL;
+    Share.share({ url }).catch(() => {});
+  }, [currentUrl]);
+
+  const clearWebCache = useCallback(() => {
+    // 메모리·디스크 캐시와 웹 저장소를 지웁니다. 쿠키(로그인)는 지우지 않습니다.
+    webRef.current?.clearCache?.(true);
+    webRef.current?.reload();
+  }, []);
+
+  const finishOnboarding = useCallback(() => {
+    setOnboardingDoneState(true);
+    setOnboardingDone();
+  }, []);
 
   const onError = useCallback(
     (e: WebViewErrorEvent) => {
@@ -248,6 +321,10 @@ function Main() {
         return;
       }
       if (!msg || typeof msg !== 'object') return;
+      if (msg.action === '__policyMissing') {
+        Alert.alert('알림', '준비 중입니다.');
+        return;
+      }
       if (msg.action === '__urlChange') {
         if (typeof msg.url === 'string') setCurrentUrl(msg.url);
         return;
@@ -258,54 +335,81 @@ function Main() {
     [inject],
   );
 
-  const onTabPress = useCallback((tab: TabItem) => navigate(resolveUrl(tab.path)), [navigate]);
+  const onTabPress = useCallback(
+    (tab: TabItem) => {
+      if (tab.native === 'more') {
+        setMoreOpen(true);
+        return;
+      }
+      navigate(resolveUrl(tab.path));
+    },
+    [navigate],
+  );
+
+  const moreTabIndex = TABS.findIndex((t) => t.native === 'more');
+  const activeIndex = moreOpen && moreTabIndex >= 0 ? moreTabIndex : activeTabIndex(currentUrl);
 
   return (
-    <SafeAreaView style={styles.root} edges={TABS_ENABLED ? ['top'] : ['top', 'bottom']}>
-      <StatusBar style="dark" />
-      <View style={styles.webContainer}>
-        <WebView
-          key={webKey}
-          ref={webRef}
-          source={{ uri: sourceUrl }}
-          style={styles.web}
-          originWhitelist={['*']}
-          // 로그인 쿠키/세션 유지
-          sharedCookiesEnabled
-          // 스와이프 뒤로/앞으로 가기, 당겨서 새로고침
-          allowsBackForwardNavigationGestures
-          pullToRefreshEnabled
-          // 동영상 인라인 재생
-          allowsInlineMediaPlayback
-          allowsFullscreenVideo
-          mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
-          // 파일 업로드(input type=file)
-          allowFileAccess
-          // 링크 target=_blank 는 onOpenWindow, window.open 은 팝업 웹뷰(닫기 버튼, window.close 지원)
-          javaScriptCanOpenWindowsAutomatically
-          onOpenWindow={onOpenWindow}
-          allowsLinkPreview={false}
-          applicationNameForUserAgent={USER_AGENT_SUFFIX}
-          injectedJavaScriptBeforeContentLoaded={INJECTED_BEFORE_LOAD}
-          onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
-          onNavigationStateChange={onNavigationStateChange}
-          onLoadProgress={(e) => setProgress(e.nativeEvent.progress)}
-          onLoadEnd={onLoadEnd}
-          onError={onError}
-          onHttpError={onHttpError}
-          renderError={() => <View style={styles.blank} />}
-          onMessage={onMessage}
-          onFileDownload={(e) => downloadAndShare(e.nativeEvent.downloadUrl)}
-          // 웹 프로세스가 메모리 부족 등으로 종료되면 다시 로드
-          onContentProcessDidTerminate={() => webRef.current?.reload()}
-        />
-        <ProgressBar progress={progress} />
-        {hasError && <NetworkError kind={errorKind} onRetry={() => reloadFresh()} />}
-      </View>
-      {TABS_ENABLED && TABS.length > 0 && (
-        <TabBar tabs={TABS} activeIndex={activeTabIndex(currentUrl)} onPress={onTabPress} />
-      )}
-    </SafeAreaView>
+    <View style={styles.root}>
+      <SafeAreaView style={styles.root} edges={TABS_ENABLED ? ['top'] : ['top', 'bottom']}>
+        <StatusBar style="dark" />
+        <View style={styles.webContainer}>
+          <WebView
+            key={webKey}
+            ref={webRef}
+            source={{ uri: sourceUrl }}
+            style={styles.web}
+            originWhitelist={['*']}
+            // 로그인 쿠키/세션 유지
+            sharedCookiesEnabled
+            // 스와이프 뒤로/앞으로 가기, 당겨서 새로고침
+            allowsBackForwardNavigationGestures
+            pullToRefreshEnabled
+            // 동영상 인라인 재생
+            allowsInlineMediaPlayback
+            allowsFullscreenVideo
+            mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+            // 파일 업로드(input type=file)
+            allowFileAccess
+            // 링크 target=_blank 는 onOpenWindow, window.open 은 팝업 웹뷰(닫기 버튼, window.close 지원)
+            javaScriptCanOpenWindowsAutomatically
+            onOpenWindow={onOpenWindow}
+            allowsLinkPreview={false}
+            applicationNameForUserAgent={USER_AGENT_SUFFIX}
+            injectedJavaScriptBeforeContentLoaded={INJECTED_BEFORE_LOAD}
+            onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+            onNavigationStateChange={onNavigationStateChange}
+            onLoadProgress={(e) => setProgress(e.nativeEvent.progress)}
+            onLoadEnd={onLoadEnd}
+            onError={onError}
+            onHttpError={onHttpError}
+            renderError={() => <View style={styles.blank} />}
+            onMessage={onMessage}
+            onFileDownload={(e) => downloadAndShare(e.nativeEvent.downloadUrl)}
+            // 웹 프로세스가 메모리 부족 등으로 종료되면 다시 로드
+            onContentProcessDidTerminate={() => webRef.current?.reload()}
+          />
+          <ProgressBar progress={progress} />
+          {hasError && <NetworkError kind={errorKind} onRetry={() => reloadFresh()} />}
+          {moreOpen && (
+            <MoreScreen
+              onOpenWeb={(p) => navigate(resolveUrl(p))}
+              onOpenPolicy={openPolicy}
+              onShare={shareCurrentPage}
+              onClearCache={clearWebCache}
+              onRequestPush={requestPush}
+              appLockEnabled={appLock.enabled}
+              onToggleAppLock={appLock.setLockEnabled}
+            />
+          )}
+        </View>
+        {TABS_ENABLED && TABS.length > 0 && (
+          <TabBar tabs={TABS} activeIndex={activeIndex} onPress={onTabPress} />
+        )}
+      </SafeAreaView>
+      {onboardingDone === false && <Onboarding onFinish={finishOnboarding} onRequestPush={requestPush} />}
+      {appLock.locked && <AppLockScreen onUnlock={appLock.unlock} />}
+    </View>
   );
 }
 

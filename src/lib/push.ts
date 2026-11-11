@@ -91,3 +91,14 @@ export function urlFromNotification(n: Notifications.Notification | undefined | 
   const fromPayload = trigger?.payload?.url;
   return typeof fromPayload === 'string' && fromPayload.length > 0 ? fromPayload : null;
 }
+
+/** 현재 알림 권한 상태 (권한 요청 창은 띄우지 않음) */
+export async function getPushPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  try {
+    const p = await Notifications.getPermissionsAsync();
+    if (p.granted) return 'granted';
+    return p.status === 'denied' ? 'denied' : 'undetermined';
+  } catch {
+    return 'undetermined';
+  }
+}

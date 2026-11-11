@@ -19,8 +19,28 @@ export const INTERNAL_HOSTS: string[] = ['kyobodasomcare.com'];
  */
 export const USER_AGENT_SUFFIX = 'KDCHealthcareApp/iOS';
 
-/** 고객센터 전화번호 (웹 브리지 'call' 액션의 기본값) */
+/**
+ * 고객센터 전화번호 (더보기 > 고객센터 전화, 웹 브리지 'call' 액션의 기본값)
+ * 번호는 이 한 곳에서만 바꾸면 됩니다. (실제 번호 확인 필요: 웹사이트에는 고객센터 번호가 없음)
+ */
 export const CUSTOMER_CENTER = '1588-7524';
+
+/** 더보기 > 문의하기 (웹 메뉴 '고객센터 > 문의하기') */
+export const CONTACT_PATH = '/CSCT0010M.do?menuId=CS0403';
+
+/** 더보기 > 서비스안내 (웹 메뉴 '서비스소개 > 주요서비스') */
+export const SERVICE_INFO_PATH = '/HCCT0010M.do?menuId=CS0201';
+
+/**
+ * 개인정보처리방침 / 이용약관 주소
+ * 비어 있으면 웹사이트 첫 화면 하단의 약관 팝업(viewBottom)을 띄웁니다.
+ * 웹팀이 고정 주소를 만들면 여기에 넣으세요. (예: 'https://www.kyobodasomcare.com/privacy.do')
+ */
+export const PRIVACY_POLICY_URL = '';
+export const TERMS_URL = '';
+
+/** 생체인증 잠금: 백그라운드에 이 시간 이상 있다가 돌아오면 다시 잠급니다. (밀리초) */
+export const APP_LOCK_AFTER_MS = 5 * 60 * 1000;
 
 /** 브랜드 색상 (하단 탭 활성 색, 로딩 바 등) */
 export const BRAND_COLOR = '#4AB035';
@@ -38,8 +58,10 @@ export type TabItem = {
   icon: string;
   /** 선택됐을 때 아이콘 */
   activeIcon: string;
-  /** 탭을 눌렀을 때 이동할 웹 경로 (START_URL 기준) */
+  /** 탭을 눌렀을 때 이동할 웹 경로 (START_URL 기준). 네이티브 탭은 빈 문자열 */
   path: string;
+  /** 웹 화면이 아닌 네이티브 화면 탭 */
+  native?: 'more';
 };
 
 /**
@@ -53,19 +75,19 @@ const menu = (path: string, menuId: string, _menuName: string) => `${path}?menuI
 /**
  * 하단 탭 메뉴 목록 (2026-11-11 웹사이트 메뉴 기준으로 확인한 실제 주소)
  * - 홈        /                          (공개)
- * - 서비스안내 /HCCT0010M.do               (공개, 웹 메뉴 '서비스소개 > 주요서비스')
  * - 건강검진   /ReMd0020/REMD0020M.do      (로그인 필요, 웹 메뉴 '회원서비스 > 건강검진신청')
  * - 건강정보   /HcCi0010/HCCI0010M.do      (로그인 필요, 웹 메뉴 '회원서비스 > 건강정보')
  * - 마이페이지 /HcIt0010/HCIT0010R.do      (로그인 필요, 웹 메뉴 '회원서비스 > 나의서비스')
+ * - 더보기     네이티브 화면 (알림·생체인증 설정, 고객센터, 문의하기, 서비스안내, 약관, 앱 버전)
  * 웹사이트에 '병원검색', '심리케어', '마이페이지' 메뉴는 아직 없어서 가장 가까운 메뉴로 연결했습니다.
  * 현재 웹 주소의 경로가 path 로 시작하면 해당 탭이 선택 표시됩니다. (쿼리는 비교하지 않음)
  */
 export const TABS: TabItem[] = [
   { title: '홈', icon: 'home-outline', activeIcon: 'home', path: '/' },
-  { title: '서비스안내', icon: 'grid-outline', activeIcon: 'grid', path: menu('/HCCT0010M.do', 'CS0201', '주요서비스') },
   { title: '건강검진', icon: 'medkit-outline', activeIcon: 'medkit', path: menu('/ReMd0020/REMD0020M.do', 'CS0304', '건강검진신청') },
   { title: '건강정보', icon: 'heart-outline', activeIcon: 'heart', path: menu('/HcCi0010/HCCI0010M.do', 'CS0302', '건강정보') },
   { title: '마이페이지', icon: 'person-outline', activeIcon: 'person', path: menu('/HcIt0010/HCIT0010R.do', 'CS0301', '나의서비스') },
+  { title: '더보기', icon: 'ellipsis-horizontal-circle-outline', activeIcon: 'ellipsis-horizontal-circle', path: '', native: 'more' },
 ];
 
 /** 스플래시(시작 화면)를 최대로 보여줄 시간 (밀리초). 웹 첫 로딩이 늦어도 이 시간이 지나면 닫힙니다. */
