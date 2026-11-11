@@ -1,0 +1,217 @@
+diff --git a/node_modules/react-native-webview/apple/RNCWebViewImpl.m b/node_modules/react-native-webview/apple/RNCWebViewImpl.m
+index 3890426..fe9f96d 100644
+--- a/node_modules/react-native-webview/apple/RNCWebViewImpl.m
++++ b/node_modules/react-native-webview/apple/RNCWebViewImpl.m
+@@ -126,8 +126,50 @@ @interface RNCWebViewImpl () <WKUIDelegate, WKNavigationDelegate, WKScriptMessag
+ @property (nonatomic, strong) WKUserScript *injectedObjectJsonScript;
+ @property (nonatomic, strong) WKUserScript *atStartScript;
+ @property (nonatomic, strong) WKUserScript *atEndScript;
++#if !TARGET_OS_OSX
++// [KDC] window.open 으로 열린 팝업 웹뷰들 (위에 쌓인 순서)
++@property (nonatomic, strong) NSMutableArray<UIView *> *kdcPopups;
++@property (nonatomic, strong) id<WKNavigationDelegate> kdcPopupNavDelegate;
++#endif
++@end
++
++#if !TARGET_OS_OSX
++// [KDC] 팝업 웹뷰용 이동 처리: 웹 주소는 팝업 안에서, 앱 스킴(카카오·PASS·토스 등)은 해당 앱으로 넘깁니다.
++@interface KDCPopupNavigationDelegate : NSObject <WKNavigationDelegate>
+ @end
+ 
++@implementation KDCPopupNavigationDelegate
++- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
++{
++  NSURL *url = navigationAction.request.URL;
++  NSString *scheme = url.scheme.lowercaseString ?: @"";
++  static NSSet<NSString *> *webSchemes;
++  static dispatch_once_t onceToken;
++  dispatch_once(&onceToken, ^{
++    webSchemes = [NSSet setWithObjects:@"", @"http", @"https", @"about", @"data", @"blob", @"javascript", nil];
++  });
++  if (![webSchemes containsObject:scheme]) {
++    decisionHandler(WKNavigationActionPolicyCancel);
++    [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL success) {
++      if (!success) {
++        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"알림" message:@"이 링크를 열 수 있는 앱이 없습니다." preferredStyle:UIAlertControllerStyleAlert];
++        [alert addAction:[UIAlertAction actionWithTitle:@"확인" style:UIAlertActionStyleDefault handler:nil]];
++        [RCTPresentedViewController() presentViewController:alert animated:YES completion:NULL];
++      }
++    }];
++    return;
++  }
++  if (navigationAction.targetFrame == nil) {
++    // 팝업 안의 target=_blank 링크는 같은 팝업에서 엽니다.
++    decisionHandler(WKNavigationActionPolicyCancel);
++    [webView loadRequest:navigationAction.request];
++    return;
++  }
++  decisionHandler(WKNavigationActionPolicyAllow);
++}
++@end
++#endif
++
+ @implementation RNCWebViewImpl
+ {
+ #if !TARGET_OS_OSX
+@@ -389,6 +431,12 @@ - (BOOL)canPerformAction:(SEL)action withSender:(id)sender
+  */
+ - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures
+ {
++#if !TARGET_OS_OSX
++  // [KDC] 링크 target=_blank 는 decidePolicy 단계에서 onOpenWindow 로 처리되므로,
++  // 여기에 오는 것은 스크립트 window.open 입니다. 본인인증(휴대폰·간편인증) 창이
++  // window.opener.postMessage 로 결과를 돌려주므로 실제 팝업 웹뷰를 만들어 돌려줍니다.
++  return [self kdc_openPopupWithConfiguration:configuration];
++#endif
+   if (!navigationAction.targetFrame.isMainFrame) {
+     NSURL *url = navigationAction.request.URL;
+ 
+@@ -403,6 +451,102 @@ - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWe
+   return nil;
+ }
+ 
++#if !TARGET_OS_OSX
++- (WKWebView *)kdc_openPopupWithConfiguration:(WKWebViewConfiguration *)configuration
++{
++  if (!_kdcPopups) _kdcPopups = [NSMutableArray new];
++  if (!_kdcPopupNavDelegate) _kdcPopupNavDelegate = [KDCPopupNavigationDelegate new];
++
++  CGRect bounds = self.bounds;
++  CGFloat barHeight = 48;
++  UIView *container = [[UIView alloc] initWithFrame:bounds];
++  container.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
++  container.backgroundColor = UIColor.whiteColor;
++
++  UIView *bar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, bounds.size.width, barHeight)];
++  bar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
++  bar.backgroundColor = UIColor.whiteColor;
++  UIView *line = [[UIView alloc] initWithFrame:CGRectMake(0, barHeight - 0.5, bounds.size.width, 0.5)];
++  line.autoresizingMask = UIViewAutoresizingFlexibleWidth;
++  line.backgroundColor = [UIColor colorWithWhite:0.85 alpha:1];
++  [bar addSubview:line];
++
++  UIButton *close = [UIButton buttonWithType:UIButtonTypeSystem];
++  [close setTitle:@"닫기" forState:UIControlStateNormal];
++  [close setTitleColor:[UIColor colorWithWhite:0.2 alpha:1] forState:UIControlStateNormal];
++  close.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
++  close.frame = CGRectMake(bounds.size.width - 76, 0, 68, barHeight);
++  close.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
++  close.accessibilityLabel = @"창 닫기";
++  [close addTarget:self action:@selector(kdc_closeTopPopup) forControlEvents:UIControlEventTouchUpInside];
++  [bar addSubview:close];
++
++  WKWebView *popup = [[WKWebView alloc] initWithFrame:CGRectMake(0, barHeight, bounds.size.width, bounds.size.height - barHeight) configuration:configuration];
++  popup.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
++  popup.UIDelegate = self;
++  popup.navigationDelegate = _kdcPopupNavDelegate;
++  popup.allowsBackForwardNavigationGestures = YES;
++  popup.allowsLinkPreview = NO;
++  popup.customUserAgent = _webView.customUserAgent;
++  if (@available(iOS 16.4, *)) {
++    popup.inspectable = _webviewDebuggingEnabled;
++  }
++
++  [container addSubview:popup];
++  [container addSubview:bar];
++  [self addSubview:container];
++  [_kdcPopups addObject:container];
++
++  container.transform = CGAffineTransformMakeTranslation(0, bounds.size.height);
++  [UIView animateWithDuration:0.25 animations:^{
++    container.transform = CGAffineTransformIdentity;
++  }];
++  return popup;
++}
++
++- (void)kdc_removePopup:(UIView *)container
++{
++  if (!container) return;
++  [_kdcPopups removeObject:container];
++  for (UIView *sub in container.subviews) {
++    if ([sub isKindOfClass:[WKWebView class]]) {
++      WKWebView *wv = (WKWebView *)sub;
++      [wv stopLoading];
++      wv.UIDelegate = nil;
++      wv.navigationDelegate = nil;
++    }
++  }
++  [UIView animateWithDuration:0.2 animations:^{
++    container.transform = CGAffineTransformMakeTranslation(0, container.bounds.size.height);
++  } completion:^(__unused BOOL finished) {
++    [container removeFromSuperview];
++  }];
++}
++
++- (void)kdc_closeTopPopup
++{
++  [self kdc_removePopup:_kdcPopups.lastObject];
++}
++
++- (void)kdc_closeAllPopups
++{
++  for (UIView *container in [_kdcPopups copy]) {
++    [self kdc_removePopup:container];
++  }
++}
++
++/** 웹에서 window.close() 를 호출하면 팝업을 닫습니다. */
++- (void)webViewDidClose:(WKWebView *)webView
++{
++  for (UIView *container in [_kdcPopups copy]) {
++    if ([webView isDescendantOfView:container]) {
++      [self kdc_removePopup:container];
++      return;
++    }
++  }
++}
++#endif
++
+ /**
+  * Enables file input on macos, see https://developer.apple.com/documentation/webkit/wkuidelegate/1641952-webview
+  */
+@@ -627,6 +771,9 @@ - (void)destroyWebView
+ - (void)removeFromSuperview
+ #endif
+ {
++#if !TARGET_OS_OSX
++  [self kdc_closeAllPopups];
++#endif
+   if (_webView) {
+     [_webView.configuration.userContentController removeScriptMessageHandlerForName:HistoryShimName];
+     [_webView.configuration.userContentController removeScriptMessageHandlerForName:MessageHandlerName];
+@@ -1217,7 +1364,7 @@ - (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSStrin
+ {
+ #if !TARGET_OS_OSX
+   UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"" message:message preferredStyle:UIAlertControllerStyleAlert];
+-  [alert addAction:[UIAlertAction actionWithTitle:@"Ok" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
++  [alert addAction:[UIAlertAction actionWithTitle:@"확인" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+     completionHandler();
+   }]];
+   [[self topViewController] presentViewController:alert animated:YES completion:NULL];
+@@ -1236,10 +1383,10 @@ - (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSStrin
+ - (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(BOOL))completionHandler{
+ #if !TARGET_OS_OSX
+   UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"" message:message preferredStyle:UIAlertControllerStyleAlert];
+-  [alert addAction:[UIAlertAction actionWithTitle:@"Ok" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
++  [alert addAction:[UIAlertAction actionWithTitle:@"확인" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+     completionHandler(YES);
+   }]];
+-  [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
++  [alert addAction:[UIAlertAction actionWithTitle:@"취소" style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
+     completionHandler(NO);
+   }]];
+   [[self topViewController] presentViewController:alert animated:YES completion:NULL];
+@@ -1264,11 +1411,11 @@ - (void)webView:(WKWebView *)webView runJavaScriptTextInputPanelWithPrompt:(NSSt
+   [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+     textField.text = defaultText;
+   }];
+-  UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"Ok" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
++  UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"확인" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+     completionHandler([[alert.textFields lastObject] text]);
+   }];
+   [alert addAction:okAction];
+-  UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
++  UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"취소" style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
+     completionHandler(nil);
+   }];
+   [alert addAction:cancelAction];
