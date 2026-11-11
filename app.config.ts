@@ -1,4 +1,13 @@
 import type { ExpoConfig } from 'expo/config';
+import { withAndroidManifest, type ConfigPlugin } from 'expo/config-plugins';
+
+/** Android: 정식(main) 매니페스트에 http 평문 통신 금지를 명시. (debug 매니페스트는 Metro 연결을 위해 true 로 덮어씀) */
+const withNoCleartextTraffic: ConfigPlugin = (cfg) =>
+  withAndroidManifest(cfg, (mod) => {
+    const app = mod.modResults.manifest.application?.[0];
+    if (app) app.$['android:usesCleartextTraffic'] = 'false';
+    return mod;
+  });
 
 /**
  * 앱 설정 (Expo Continuous Native Generation)
@@ -13,7 +22,7 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png', // 1024x1024 앱 아이콘 (투명 배경 없음)
   userInterfaceStyle: 'light',
-  platforms: ['ios'],
+  platforms: ['ios', 'android'],
   ios: {
     bundleIdentifier: 'com.kyobodasomcare.app',
     appleTeamId: 'V388NH26FH',
@@ -59,6 +68,22 @@ const config: ExpoConfig = {
       ],
     },
   },
+  // Android 최소 설정 (APK 빌드용). 안드로이드 기능 작업은 ANDROID_BUILD.md 참고
+  android: {
+    package: 'com.kyobodasomcare.app',
+    versionCode: 2, // Play 업로드할 때마다 1씩 올려야 함
+    adaptiveIcon: {
+      foregroundImage: './assets/icon.png',
+      backgroundColor: '#ffffff',
+    },
+    // 앱이 직접 요청하는 권한은 인터넷만. (알림 POST_NOTIFICATIONS, 생체인증 USE_BIOMETRIC 은 각 라이브러리가 자동 추가)
+    permissions: ['android.permission.INTERNET'],
+    blockedPermissions: [
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+    ],
+  },
   plugins: [
     [
       'expo-splash-screen',
@@ -82,4 +107,4 @@ const config: ExpoConfig = {
   ],
 };
 
-export default config;
+export default withNoCleartextTraffic(config);
