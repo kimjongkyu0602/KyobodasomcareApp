@@ -16,6 +16,7 @@ import type {
 
 import {
   PRIVACY_POLICY_URL,
+  SIGNUP_GUARD,
   SPLASH_MAX_MS,
   START_URL,
   TABS,
@@ -34,6 +35,7 @@ import { buildDispatchScript, handleBridgeMessage, INJECTED_BEFORE_LOAD, type Br
 import { downloadAndShare } from './lib/download';
 import { cachedPushInfo, registerForPush, updateCachedToken, urlFromNotification } from './lib/push';
 import { getOnboardingDone, setOnboardingDone } from './lib/settings';
+import { isSignupUrl, SIGNUP_GUARD_SCRIPT } from './lib/signupGuard';
 import { checkForUpdate } from './lib/updateCheck';
 import { useAppLock } from './lib/useAppLock';
 import { activeTabIndex, isInternalUrl, resolveUrl, schemeOf } from './lib/url';
@@ -41,6 +43,9 @@ import { activeTabIndex, isInternalUrl, resolveUrl, schemeOf } from './lib/url';
 // 웹 첫 화면이 뜰 때까지 네이티브 스플래시(흰 배경 + 로고)를 유지합니다.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 300, fade: true });
+
+/** 웹 화면이 로드되기 전에 넣는 스크립트: 웹↔앱 브리지 + 회원가입 링크 숨김 */
+const INJECTED_SCRIPTS = `${INJECTED_BEFORE_LOAD}\n${SIGNUP_GUARD_SCRIPT}`;
 
 /** 웹뷰 안에서 그대로 열어도 되는 스킴 */
 const WEB_SCHEMES = new Set(['http', 'https', 'about', 'data', 'blob', 'javascript']);
@@ -284,6 +289,15 @@ function Main() {
       return false;
     }
     if (scheme === 'http' || scheme === 'https') {
+      if (req.isTopFrame && isInternalUrl(url) && isSignupUrl(url)) {
+        // 기존 회원 전용 앱이라 회원가입 화면으로는 이동하지 않고 로그인 화면으로 보냅니다.
+        const loginUrl = resolveUrl(SIGNUP_GUARD.redirectPath);
+        Alert.alert('안내', '이 앱은 교보다솜케어 기존 회원 전용입니다.\n앱에서는 회원가입을 할 수 없습니다.');
+        if (!lastUrlRef.current.startsWith(loginUrl)) {
+          setTimeout(() => webRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(loginUrl)}; true;`), 0);
+        }
+        return false;
+      }
       if (req.isTopFrame && !isInternalUrl(url) && req.navigationType === 'click') {
         // 다른 사이트 링크를 누르면 Safari 로 엽니다.
         openExternally(url);
@@ -376,7 +390,7 @@ function Main() {
             onOpenWindow={onOpenWindow}
             allowsLinkPreview={false}
             applicationNameForUserAgent={USER_AGENT_SUFFIX}
-            injectedJavaScriptBeforeContentLoaded={INJECTED_BEFORE_LOAD}
+            injectedJavaScriptBeforeContentLoaded={INJECTED_SCRIPTS}
             onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
             onNavigationStateChange={onNavigationStateChange}
             onLoadProgress={(e) => setProgress(e.nativeEvent.progress)}

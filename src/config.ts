@@ -96,3 +96,21 @@ export const SPLASH_MAX_MS = 3000;
 /** 앱 버전 확인용 App Store 조회 주소 */
 export const APP_STORE_LOOKUP_URL =
   'https://itunes.apple.com/lookup?bundleId=com.kyobodasomcare.app&country=kr';
+
+/**
+ * 회원가입 화면 숨김/차단 (App Store 심사: 이 앱은 기존 회원 전용, 앱에서 계정을 만들 수 없음)
+ * 2026-11-11 확인: 로그인 화면(/login.do) 하단 '회원가입' 버튼 → /UsSb0010/USSB0010M.do (약관) → /UsSb0011/USSB0011M.do
+ * - texts: 링크·버튼 글자(공백 무시)에 이 말이 들어가면 숨깁니다. 약관 본문 같은 일반 글자는 숨기지 않습니다.
+ * - safeTexts: 이 말이 들어간 링크·버튼은 절대 숨기지 않습니다. (로그인, 본인확인, 아이디/비밀번호 찾기 보호)
+ * - promoTexts: 가입 권유 안내 문구 (짧은 문단만 숨김)
+ * - urlPatterns: 주소(경로+쿼리, 대소문자 무시) 정규식. 링크 href/onclick 숨김과 화면 이동 차단에 함께 씁니다.
+ *   주의: 'join' 만 쓰면 웹 스크립트의 .join( 과 겹치므로 '/join' 처럼 경로 형태로 적습니다.
+ * - redirectPath: 차단했을 때 보낼 화면
+ */
+export const SIGNUP_GUARD = {
+  texts: ['회원가입', '가입하기', '신규가입', '신규등록', '회원등록', '계정생성', '계정만들기'],
+  safeTexts: ['로그인', '본인확인', '인증', '찾기', '탈퇴'],
+  promoTexts: ['회원이 되어'],
+  urlPatterns: ['/ussb\\d', '/join', 'signup', 'sign-up', 'memberjoin', 'joinmember'],
+  redirectPath: '/login.do',
+};
