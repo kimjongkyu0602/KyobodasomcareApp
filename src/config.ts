@@ -33,10 +33,11 @@ export const SERVICE_INFO_PATH = '/HCCT0010M.do?menuId=CS0201';
 
 /**
  * 개인정보처리방침 / 이용약관 주소
- * 비어 있으면 웹사이트 첫 화면 하단의 약관 팝업(viewBottom)을 띄웁니다.
- * 웹팀이 고정 주소를 만들면 여기에 넣으세요. (예: 'https://www.kyobodasomcare.com/privacy.do')
+ * 값이 있으면 앱 웹뷰에서 그 주소를 열고, 비어 있으면 웹사이트 첫 화면 하단의 약관 팝업(viewBottom)을 띄웁니다.
+ * - 개인정보처리방침: 웹팀이 만든 단독 페이지 (2026-11-12 확인: 로그인 없이 열림). App Store Connect 의 개인정보처리방침 URL 과 같은 주소
+ * - 이용약관: 단독 페이지가 아직 없어 팝업(viewBottom('case2'))으로 엽니다. 단독 주소가 생기면 여기에 넣으세요.
  */
-export const PRIVACY_POLICY_URL = '';
+export const PRIVACY_POLICY_URL = 'https://www.kyobodasomcare.com/privacyPolicy.do';
 export const TERMS_URL = '';
 
 /** 생체인증 잠금: 백그라운드에 이 시간 이상 있다가 돌아오면 다시 잠급니다. (밀리초) */

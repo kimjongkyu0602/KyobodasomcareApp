@@ -85,7 +85,8 @@ Xcode 로 직접 하는 경우:
 | `CUSTOMER_CENTER` | `1588-7524` | 더보기 '고객센터 전화'와 브리지 `call` 의 기본 번호 (번호는 이 한 곳만 바꾸면 됨) |
 | `CONTACT_PATH` | `/CSCT0010M.do?menuId=CS0403` | 더보기 '문의하기' |
 | `SERVICE_INFO_PATH` | `/HCCT0010M.do?menuId=CS0201` | 더보기 '서비스안내' |
-| `PRIVACY_POLICY_URL` / `TERMS_URL` | `''` | 비어 있으면 웹 첫 화면 하단의 약관 팝업(`viewBottom`)을 띄움. **웹팀이 고정 주소를 만들면 여기에 입력** |
+| `PRIVACY_POLICY_URL` | `https://www.kyobodasomcare.com/privacyPolicy.do` | 개인정보처리방침 단독 페이지 (로그인 불필요). App Store Connect 개인정보처리방침 URL 과 같은 주소 |
+| `TERMS_URL` | `''` | 이용약관 단독 페이지가 없어 웹 첫 화면 하단의 약관 팝업(`viewBottom('case2')`)을 띄움. 단독 주소가 생기면 입력 |
 | `APP_LOCK_AFTER_MS` | 5분 | 생체인증 잠금: 이 시간 이상 백그라운드에 있다 돌아오면 다시 잠금 |
 | `TABS_ENABLED` | `true` | 하단 탭 메뉴 표시 여부 |
 | `TABS` | 홈 `/`, 건강검진 `/ReMd0020/REMD0020M.do`, 건강정보 `/HcCi0010/HCCI0010M.do`, 마이페이지(나의서비스) `/HcIt0010/HCIT0010R.do`, 더보기(네이티브) | 웹 메뉴의 실제 주소 (menuId 쿼리 포함). 건강검진·건강정보·마이페이지는 로그인 필요. `native: 'more'` 탭은 네이티브 화면 |
@@ -207,7 +208,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'getPushToken' })
 4. **탭 경로**: 웹에 '병원검색'·'심리케어'·'마이페이지' 메뉴가 생기면 `src/config.ts` 의 `TABS` 를 바꿔 주세요. 웹팀 확인 필요: 로그아웃 상태에서 `/HcCi0010/HCCI0010M.do`(건강정보)는 로그인 화면이 아니라 오류 페이지가 뜹니다 (다른 회원 메뉴는 로그인으로 이동).
 5. **심사 준비 (웹/App Store Connect)**
    - 앱 안에서 **회원 탈퇴** 기능 (필수, 가이드라인 5.1.1(v))
-   - **개인정보처리방침 URL** (App Store Connect 입력 + 웹 안에서 접근 가능)
+   - **개인정보처리방침 URL**: `https://www.kyobodasomcare.com/privacyPolicy.do` (App Store Connect 입력 + 앱 더보기에서 연결, 빌드 3부터)
    - **앱 개인정보 항목**(수집 데이터) 작성
    - **심사용 테스트 계정** (ID/비밀번호, 본인인증이 필요하면 우회 방법 안내)
    - 의료·건강 정보 관련 문구/면책 고지 확인
